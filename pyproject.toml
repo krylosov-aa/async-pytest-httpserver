@@ -18,6 +18,3 @@ dev = [
     "ruff>=0.14.8",
     "wemake-python-styleguide>=1.4.0",
 ]
-
-[project.entry-points.pytest11]
-my_fixtures = "async_pytest_httpserver.fixtures"

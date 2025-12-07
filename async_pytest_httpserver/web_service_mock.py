@@ -1,19 +1,21 @@
 from copy import deepcopy
 from dataclasses import dataclass
 from inspect import isawaitable
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
 from aiohttp import web
+
+
+ResponseHandler = Callable[
+    [web.Request], web.Response | Awaitable[web.Response]
+]
 
 
 @dataclass
 class MockData:
     method: str  # the method we replace
     path: str  # the API path we are replacing
-    response: (
-        web.Response
-        | Callable[[web.Request], web.Response | Awaitable[web.Response]]
-    )
+    response: web.Response | ResponseHandler
 
 
 class WebServiceMock:
@@ -24,9 +26,9 @@ class WebServiceMock:
         2. Add real APIs via add_mock_data
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._mock_data: list[MockData] = []
-        self._call_info = {}
+        self._call_info: dict[str, dict[str, list[dict[str, Any]]]] = {}
 
     async def handle(self, request: web.Request) -> web.Response:
         """
@@ -41,19 +43,18 @@ class WebServiceMock:
                 await self._save_request(mock.method, mock.path, request)
                 if isinstance(mock.response, web.Response):
                     return deepcopy(mock.response)
-                else:
-                    response = mock.response(request)
-                    if isawaitable(response):
-                        return await response
-                    else:
-                        return response
 
-        raise Exception(
+                response = mock.response(request)
+                if isawaitable(response):
+                    return await response
+                return response
+
+        raise LookupError(
             f"Mock with method={request.method} "
             f"and url={request.path} not found"
         )
 
-    def add_mock_data(self, mock_data: MockData) -> list[dict[str, any]]:
+    def add_mock_data(self, mock_data: MockData) -> list[dict[str, Any]]:
         """Saves a new mock and returns a reference to the call history"""
         self._mock_data.append(mock_data)
 
@@ -66,11 +67,12 @@ class WebServiceMock:
     async def _save_request(
         self, method: str, path: str, request: web.Request
     ) -> None:
-        data = {"headers": request.headers}
+        data: dict[str, Any] = {"headers": request.headers}
+
         if request.can_read_body:
             if request.content_type == "application/json":
                 data["json"] = await request.json()
-            if request.content_type == "text/plain":
+            elif request.content_type == "text/plain":
                 data["text"] = await request.text()
 
         self._call_info[path][method].append(data)
