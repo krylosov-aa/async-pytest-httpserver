@@ -9,7 +9,7 @@ async-pytest-httpserver is a fully asynchronous mock HTTP server for use in pyte
 It is designed for testing code that performs HTTP requests (aiohttp, httpx, requests, etc.) without relying on real external services.
 
 ## Features
-- Fully asynchronous - implemented using aiohttp.web.Application
+- Fully asynchronous - implemented using aiohttp
 - Dynamic runtime mocking - add or modify mock routes while the server is running
 - Seamless integration with pytest-aiohttp and pytest-asyncio
 - Real TCP server - works with any HTTP client (aiohttp, httpx, requests, etc.)
