@@ -44,50 +44,27 @@ async def some_service_mock(
         settings.EXTERNAL_SERVICE_URL = old_url
 ```
 
-### 2. mock specific api
+### 2. mock and test it
 
-You don’t need to follow this pattern exactly —
-this is just an example where the fixture is responsible for mocking
-a specific route.
-
-```python
-@pytest.fixture
-def some_service_mock_api(
-    some_service_mock: AddMockDataFunc,
-) -> Callable[
-    [web.Response | ResponseHandler],
-    List[dict[str, Any]],
-]:
-    """An example of a fixture where a specific API is mocked"""
-
-    def _create_mock(
-        response: web.Response
-        | Callable[[web.Request], web.Response | Awaitable[web.Response]],
-    ) -> List[dict[str, Any]]:
-        return some_service_mock(MockData("POST", "/some_api", response))
-
-    return _create_mock
-```
-
-### 3. test it
+#### static mock
 
 ```python
 import pytest
 from http import HTTPStatus
-
+from async_pytest_httpserver import (
+    MockData,
+)
 from aiohttp.web import json_response, Request, Response
 
-# example of static mock
 
 @pytest.mark.asyncio
-async def test_static_mock(client, some_service_mock_api):
+async def test_static_mock(client, some_service_mock):
     # Arrange
-    calls_info = some_service_mock_api(
-        json_response(
-            {"result": "some_result"},
-            status=HTTPStatus.OK,
-        )
+    response = json_response(
+        {"result": "some_result"},
+        status=HTTPStatus.OK,
     )
+    calls_info = some_service_mock(MockData("POST", "/some_api", response))
 
     # Act
     response = await client.post(
@@ -103,20 +80,32 @@ async def test_static_mock(client, some_service_mock_api):
     assert len(calls_info) == 1
     call_info = calls_info[0]
     assert call_info["json"] == {"text": "text"}
+```
 
+#### dynamic async mock
 
-# example of dynamic async mock
+```python
+import pytest
+from http import HTTPStatus
+from async_pytest_httpserver import (
+    MockData,
+)
+from aiohttp.web import json_response, Request, Response
+
 
 async def async_mock_handler(request: Request) -> Response:
     return json_response(
-            {"result": "some_result"},
-            status=HTTPStatus.OK,
-        )
+        {"result": "some_result"},
+        status=HTTPStatus.OK,
+    )
+
 
 @pytest.mark.asyncio
-async def test_async_handler(client, some_service_mock_api):
+async def test_async_handler(client, some_service_mock):
     # Arrange
-    calls_info = some_service_mock_api(async_mock_handler)
+    calls_info = some_service_mock(
+        MockData("POST", "/some_api", async_mock_handler)
+    )
 
     # Act
     response = await client.post(
@@ -132,21 +121,31 @@ async def test_async_handler(client, some_service_mock_api):
     assert len(calls_info) == 1
     call_info = calls_info[0]
     assert call_info["json"] == {"text": "text"}
+```
 
+#### dynamic sync mock
 
-# example of dynamic sync mock
-
+```python
+import pytest
+from http import HTTPStatus
+from async_pytest_httpserver import (
+    MockData,
+)
+from aiohttp.web import json_response, Request, Response
 
 def sync_mock_handler(request: Request) -> Response:
     return json_response(
-            {"result": "some_result"},
-            status=HTTPStatus.OK,
-        )
+        {"result": "some_result"},
+        status=HTTPStatus.OK,
+    )
+
 
 @pytest.mark.asyncio
-async def test_sync_handler(client, some_service_mock_api):
+async def test_sync_handler(client, some_service_mock):
     # Arrange
-    calls_info = some_service_mock_api(sync_mock_handler)
+    calls_info = some_service_mock(
+        MockData("POST", "/some_api", sync_mock_handler)
+    )
 
     # Act
     response = await client.post(

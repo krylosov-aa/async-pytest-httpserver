@@ -1,19 +1,20 @@
 import pytest
 from http import HTTPStatus
-
+from async_pytest_httpserver import (
+    MockData,
+)
 from aiohttp.web import json_response, Request, Response
 from . import settings
 
 
 @pytest.mark.asyncio
-async def test_static_mock(client, some_service_mock_api):
+async def test_static_mock(client, some_service_mock):
     # Arrange
-    calls_info = some_service_mock_api(
-        json_response(
-            {"result": "some_result"},
-            status=HTTPStatus.OK,
-        )
+    response = json_response(
+        {"result": "some_result"},
+        status=HTTPStatus.OK,
     )
+    calls_info = some_service_mock(MockData("POST", "/some_api", response))
 
     # Act
     response = await client.post(
@@ -39,9 +40,11 @@ async def async_mock_handler(request: Request) -> Response:
 
 
 @pytest.mark.asyncio
-async def test_async_handler(client, some_service_mock_api):
+async def test_async_handler(client, some_service_mock):
     # Arrange
-    calls_info = some_service_mock_api(async_mock_handler)
+    calls_info = some_service_mock(
+        MockData("POST", "/some_api", async_mock_handler)
+    )
 
     # Act
     response = await client.post(
@@ -67,9 +70,11 @@ def sync_mock_handler(request: Request) -> Response:
 
 
 @pytest.mark.asyncio
-async def test_sync_handler(client, some_service_mock_api):
+async def test_sync_handler(client, some_service_mock):
     # Arrange
-    calls_info = some_service_mock_api(sync_mock_handler)
+    calls_info = some_service_mock(
+        MockData("POST", "/some_api", sync_mock_handler)
+    )
 
     # Act
     response = await client.post(
