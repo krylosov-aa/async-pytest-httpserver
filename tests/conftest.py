@@ -7,6 +7,7 @@ from aiohttp import web, ClientSession
 from async_pytest_httpserver import (
     MockData,
     AddMockDataFunc,
+    ResponseHandler,
 )
 from . import settings
 
@@ -33,17 +34,13 @@ async def some_service_mock(
 def some_service_mock_api(
     some_service_mock: AddMockDataFunc,
 ) -> Callable[
-    [
-        web.Response
-        | Callable[[web.Request], web.Response | Awaitable[web.Response]]
-    ],
+    [web.Response | ResponseHandler],
     List[dict[str, Any]],
 ]:
     """An example of a fixture where a specific API is mocked"""
 
     def _create_mock(
-        response: web.Response
-        | Callable[[web.Request], web.Response | Awaitable[web.Response]],
+        response: web.Response | ResponseHandler,
     ) -> List[dict[str, Any]]:
         return some_service_mock(MockData("POST", "/some_api", response))
 
