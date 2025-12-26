@@ -2,7 +2,6 @@
 [![PyPI](https://img.shields.io/pypi/v/async-pytest-httpserver.svg)](https://pypi.org/project/async-pytest-httpserver/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/async-pytest-httpserver?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/async-pytest-httpserver)
 
-No AI was used in the creation of this library.
 
 async-pytest-httpserver is a fully asynchronous mock HTTP server for pytest,
 built on top of aiohttp.
