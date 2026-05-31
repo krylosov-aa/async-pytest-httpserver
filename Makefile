@@ -1,8 +1,16 @@
+l:
+	make lint
+
 lint:
 	ruff format .
-	ruff check --fix .
 	mypy .
+	ruff check --fix .
 	flake8 .
+	complexipy . --failed
+	radon cc .
+
+t:
+	make test
 
 test:
 	pytest --cov async_pytest_httpserver tests --cov-report=term-missing

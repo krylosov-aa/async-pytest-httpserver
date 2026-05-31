@@ -1,9 +1,12 @@
-import pytest
 from http import HTTPStatus
+
+import pytest
+from aiohttp.web import Request, Response, json_response
+
 from async_pytest_httpserver import (
     MockData,
 )
-from aiohttp.web import json_response, Request, Response
+
 from . import settings
 
 

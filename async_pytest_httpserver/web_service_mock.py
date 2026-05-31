@@ -1,14 +1,18 @@
+from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import dataclass
+from http import HTTPStatus
 from inspect import isawaitable
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from aiohttp import web
-
 
 ResponseHandler = Callable[
     [web.Request], web.Response | Awaitable[web.Response]
 ]
+
+_RequestLog = dict[str, Any]
+_MethodCalls = list[_RequestLog]
 
 
 @dataclass
@@ -28,34 +32,29 @@ class WebServiceMock:
 
     def __init__(self) -> None:
         self._mock_data: list[MockData] = []
-        self._call_info: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        self._call_info: dict[str, dict[str, _MethodCalls]] = {}
 
     async def handle(self, request: web.Request) -> web.Response:
         """
         The method searches for a mock among the registered MockData,
         stores the request information, and returns a mock response.
         """
-        for mock in self._mock_data:
-            if (
-                mock.method.lower() == request.method.lower()
-                and mock.path == request.path
-            ):
-                await self._save_request(mock.method, mock.path, request)
-                if isinstance(mock.response, web.Response):
-                    return deepcopy(mock.response)
-
-                response = mock.response(request)
-                if isawaitable(response):
-                    return await response
-                return response
-
-        return web.Response(
-            status=404,
-            text=(
-                f"[async-pytest-httpserver] No mock registered for "
-                f"{request.method} {request.path}"
-            ),
-        )
+        mock = self._find_mock(request)
+        if mock is None:
+            return web.Response(
+                status=HTTPStatus.NOT_FOUND,
+                text=(
+                    f"[async-pytest-httpserver] No mock registered for "
+                    f"{request.method} {request.path}"
+                ),
+            )
+        await self._save_request(mock.method, mock.path, request)
+        if isinstance(mock.response, web.Response):
+            return deepcopy(mock.response)
+        response = mock.response(request)
+        if isawaitable(response):
+            return await response
+        return response
 
     def add_mock_data(self, mock_data: MockData) -> list[dict[str, Any]]:
         """Saves a new mock and returns a reference to the call history"""
@@ -67,10 +66,17 @@ class WebServiceMock:
         self._call_info[mock_data.path] = url_data
         return self._call_info[mock_data.path][mock_data.method]
 
+    def _find_mock(self, request: web.Request) -> "MockData | None":
+        for mock in self._mock_data:
+            method_match = mock.method.lower() == request.method.lower()
+            if method_match and mock.path == request.path:
+                return mock
+        return None
+
     async def _save_request(
         self, method: str, path: str, request: web.Request
     ) -> None:
-        data: dict[str, Any] = {"headers": request.headers}
+        data: _RequestLog = {"headers": request.headers}
 
         if request.can_read_body:
             if request.content_type == "application/json":
