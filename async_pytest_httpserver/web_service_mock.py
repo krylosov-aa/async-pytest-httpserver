@@ -49,9 +49,12 @@ class WebServiceMock:
                     return await response
                 return response
 
-        raise LookupError(
-            f"Mock with method={request.method} "
-            f"and url={request.path} not found"
+        return web.Response(
+            status=404,
+            text=(
+                f"[async-pytest-httpserver] No mock registered for "
+                f"{request.method} {request.path}"
+            ),
         )
 
     def add_mock_data(self, mock_data: MockData) -> list[dict[str, Any]]:
