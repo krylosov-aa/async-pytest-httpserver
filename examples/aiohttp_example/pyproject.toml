@@ -1,0 +1,78 @@
+[project]
+name = "aiohttp-example"
+version = "0.1.0"
+description = "Example project using async-pytest-httpserver as an external dependency."
+requires-python = ">=3.10"
+dependencies = [
+    "aiohttp>=3.13",
+    "async-pytest-httpserver",
+    "pytest>=9.0",
+    "pytest-asyncio>=1.3",
+]
+
+[dependency-groups]
+dev = [
+    "complexipy>=5.5.0",
+    "mypy>=1.19.0",
+    "radon>=6.0.1",
+    "ruff>=0.14.8",
+    "wemake-python-styleguide>=1.4.0",
+]
+
+[tool.uv.sources]
+async-pytest-httpserver = { path = "../..", editable = false }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.complexipy]
+max-complexity-allowed = 10
+exclude-patterns = [
+    ".venv",
+    "venv",
+    "__pycache__",
+]
+
+[tool.ruff]
+line-length = 79
+target-version = "py310"
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+    "C901",   # mccabe complexity
+    "S",      # flake8-bandit
+    "ASYNC",  # flake8-async
+    "T10",    # flake8-debugger
+    "PERF",   # Perflint
+    "RUF",    # Ruff-specific
+    "C4",     # flake8-comprehensions
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",   # assert is standard in pytest
+    "S105",   # mock/test credential strings are not real passwords
+    "PERF",   # performance rules not applied to test code
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.radon]
+exclude = "venv/*,.venv/*"
+cc_min = "C"
+show_complexity = true
+average = true

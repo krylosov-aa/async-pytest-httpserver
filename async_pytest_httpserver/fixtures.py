@@ -1,29 +1,46 @@
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
-from typing import Any
+from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import pytest_asyncio
 from aiohttp import web
-from aiohttp.test_utils import TestServer
 
-from .web_service_mock import MockData, WebServiceMock
+if TYPE_CHECKING:
+    from aiohttp.test_utils import TestServer
 
-AddMockDataFunc = Callable[[MockData], list[dict[str, Any]]]
-_MockCreator = Callable[[], Awaitable[tuple[str, AddMockDataFunc]]]
+from .http_server_mock import HTTPServerMock
+
+_MockFactory = Callable[..., Awaitable[HTTPServerMock]]
 
 
 @pytest_asyncio.fixture
-async def external_service_mock(
+async def http_server(
     aiohttp_server: Callable[[web.Application], Awaitable[TestServer]],
-) -> _MockCreator:
-    """Mock server for an external service."""
+) -> _MockFactory:
+    """
+    Factory fixture that creates isolated mock HTTP servers.
+    Call it once per external service you need to mock.
 
-    async def _create_mock() -> tuple[str, AddMockDataFunc]:
+    Usage::
+
+        @pytest_asyncio.fixture
+        async def payment_mock(http_server, monkeypatch):
+            mock = await http_server()
+            monkeypatch.setattr(settings, "PAYMENT_URL", mock.base_url)
+            yield mock
+    """
+
+    async def _create(
+        no_handler_status_code: int = HTTPStatus.NOT_FOUND,
+    ) -> HTTPServerMock:
         app = web.Application()
-        web_service = WebServiceMock()
-
-        app.router.add_route("*", "/{tail:.+}", web_service.handle)
-
+        mock = HTTPServerMock(no_handler_status_code=no_handler_status_code)
+        app.router.add_route("*", "/", mock.handle)
+        app.router.add_route("*", "/{tail:.+}", mock.handle)
         server = await aiohttp_server(app)
-        return str(server.make_url("")), web_service.add_mock_data
+        mock.base_url = str(server.make_url(""))
+        return mock
 
-    return _create_mock
+    return _create

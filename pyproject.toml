@@ -1,6 +1,6 @@
 [project]
 name = "async-pytest-httpserver"
-version = "1.0.1"
+version = "2.0.0"
 description = "Async mock HTTP server for pytest, built on top of aiohttp."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -10,6 +10,7 @@ authors = [
 license = { text = "MIT" }
 dependencies = [
     "aiohttp>=3.13.2",
+    "multidict>=6.0",
     "pytest>=9.0.2",
     "pytest-aiohttp>=1.1.0",
     "pytest-asyncio>=1.3.0",
@@ -53,6 +54,7 @@ exclude = [
     ".venv",
     "venv",
     "__pycache__",
+    "examples",
 ]
 
 [tool.ruff.lint]
@@ -85,6 +87,7 @@ select = [
     "DTZ011", # date.today() without tz is fine in tests
     "PERF",   # performance rules not applied to test code
     "RUF028", # fmt: off inside function calls used in legacy test fixtures
+    "TCH",    # TYPE_CHECKING blocks are unnecessary noise in test files
 ]
 
 [tool.ruff.lint.mccabe]
@@ -99,3 +102,11 @@ exclude = "venv/*,.venv/*"
 cc_min = "C"
 show_complexity = true
 average = true
+
+[tool.coverage.run]
+source = ["async_pytest_httpserver"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

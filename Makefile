@@ -1,5 +1,10 @@
+lt:
+	make l
+	make t
+
 l:
 	make lint
+	make lint_examples
 
 lint:
 	ruff format .
@@ -11,15 +16,17 @@ lint:
 
 t:
 	make test
+	make test_examples
 
 test:
-	pytest --cov async_pytest_httpserver tests --cov-report=term-missing
+	coverage run -m pytest tests
+	coverage report --include="async_pytest_httpserver/*" --show-missing
 
-test_fastapi:
-	pytest examples/fastapi_example/tests
+test_examples:
+	cd examples/aiohttp_example && unset VIRTUAL_ENV && uv sync --reinstall-package async-pytest-httpserver && uv run pytest
 
-test_starlette:
-	pytest examples/starlette_example/tests
+lint_examples:
+	cd examples/aiohttp_example && unset VIRTUAL_ENV && uv sync --reinstall-package async-pytest-httpserver --all-groups -q && uv run make lint
 
 uv:
 	uv sync
