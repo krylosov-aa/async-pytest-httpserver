@@ -3,9 +3,6 @@
 [![PyPI](https://img.shields.io/pypi/v/async-pytest-httpserver.svg)](https://pypi.org/project/async-pytest-httpserver/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/async-pytest-httpserver?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/async-pytest-httpserver)
 
-Fully async mock HTTP server for pytest, built on top of aiohttp.
-
-## About
 
 Fully async mock HTTP server for pytest — test HTTP clients against a real TCP server on localhost, with rich request matching and response control.
 
