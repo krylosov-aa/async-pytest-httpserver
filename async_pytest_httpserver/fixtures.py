@@ -10,6 +10,7 @@ from aiohttp import web
 if TYPE_CHECKING:
     from aiohttp.test_utils import TestServer
 
+from .conflict_policy import ConflictPolicy
 from .http_server_mock import HTTPServerMock
 
 _MockFactory = Callable[..., Awaitable[HTTPServerMock]]
@@ -34,9 +35,13 @@ async def http_server(
 
     async def _create(
         no_handler_status_code: int = HTTPStatus.NOT_FOUND,
+        conflict_policy: ConflictPolicy = ConflictPolicy.LAST_WINS,
     ) -> HTTPServerMock:
         app = web.Application()
-        mock = HTTPServerMock(no_handler_status_code=no_handler_status_code)
+        mock = HTTPServerMock(
+            no_handler_status_code=no_handler_status_code,
+            conflict_policy=conflict_policy,
+        )
         app.router.add_route("*", "/", mock.handle)
         app.router.add_route("*", "/{tail:.+}", mock.handle)
         server = await aiohttp_server(app)

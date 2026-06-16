@@ -9,6 +9,7 @@ from aiohttp import web
 from multidict import CIMultiDictProxy, MultiDictProxy
 
 from .call_info import CallInfo
+from .conflict_policy import ConflictError, ConflictPolicy
 from .handlers import HandlerType, RequestHandler
 from .matchers import (
     UNDEFINED,
@@ -33,10 +34,15 @@ class HTTPServerMock:
     """Async mock HTTP server."""
 
     def __init__(
-        self, *, no_handler_status_code: int = HTTPStatus.NOT_FOUND
+        self,
+        *,
+        no_handler_status_code: int = HTTPStatus.NOT_FOUND,
+        conflict_policy: ConflictPolicy = ConflictPolicy.LAST_WINS,
     ) -> None:
         self.base_url: str = ""
         self._no_handler_status_code = no_handler_status_code
+        self._conflict_policy = conflict_policy
+        self._last_wins = conflict_policy != ConflictPolicy.FIRST_WINS
         self._permanent: list[_HandlerEntry] = []
         self._oneshot: list[_HandlerEntry] = []
         self._ordered: deque[_HandlerEntry] = deque()
@@ -236,7 +242,13 @@ class HTTPServerMock:
             await self._log_unmatched(request, body)
             return self._ordered_mismatch(request)
 
-        handler = self._match_pool(self._oneshot, request, body, remove=True)
+        handler = self._match_pool(
+            self._oneshot,
+            request,
+            body,
+            remove=True,
+            last_wins=self._last_wins,
+        )
         if handler is not None:
             return await self._dispatch(request, body, handler)
 
@@ -245,6 +257,7 @@ class HTTPServerMock:
             request,
             body,
             remove=False,
+            last_wins=self._last_wins,
         )
         if handler is not None:
             return await self._dispatch(request, body, handler)
@@ -290,6 +303,8 @@ class HTTPServerMock:
             data=data,
             header_value_matcher=header_value_matcher,
         )
+        if self._conflict_policy == ConflictPolicy.ERROR:
+            self._check_conflict(matcher, kind)
         handler = RequestHandler(kind)
         if kind == HandlerType.PERMANENT:
             self._permanent.append((matcher, handler))
@@ -298,6 +313,24 @@ class HTTPServerMock:
         else:
             self._ordered.append((matcher, handler))
         return handler
+
+    def _check_conflict(
+        self, matcher: _BaseMatcher, kind: HandlerType
+    ) -> None:
+        pool = self._pool_for_conflict(kind)
+        for existing, _ in pool:
+            if existing.could_overlap(matcher):
+                raise ConflictError(
+                    f"{_PREFIX} Handler conflict: "
+                    f"{matcher!r} overlaps with {existing!r}"
+                )
+
+    def _pool_for_conflict(self, kind: HandlerType) -> list[_HandlerEntry]:
+        if kind == HandlerType.PERMANENT:
+            return list(self._permanent)
+        if kind == HandlerType.ONESHOT:
+            return list(self._oneshot)
+        return list(self._ordered)
 
     def _match_ordered(
         self, request: web.Request, body: bytes
@@ -378,8 +411,12 @@ class HTTPServerMock:
         body: bytes,
         *,
         remove: bool,
+        last_wins: bool,
     ) -> RequestHandler | None:
-        for idx, (matcher, handler) in enumerate(pool):
+        items = list(enumerate(pool))
+        if last_wins:
+            items = list(reversed(items))
+        for idx, (matcher, handler) in items:
             if matcher.matches(request, body):
                 if remove:
                     pool.pop(idx)

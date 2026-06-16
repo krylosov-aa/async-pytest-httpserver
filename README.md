@@ -363,6 +363,66 @@ await client.post(mock.url_for("/step2"))
 mock.check()  # passes — both consumed in order
 ```
 
+### Conflict policy
+
+When two handlers are registered for overlapping routes, `ConflictPolicy` controls which one wins or whether registration raises an error.
+
+Pass `conflict_policy` to the `http_server` factory:
+
+```python
+from async_pytest_httpserver import ConflictPolicy
+
+mock = await http_server(conflict_policy=ConflictPolicy.LAST_WINS)
+```
+
+#### LAST_WINS (default)
+
+The most recently registered handler takes priority. Earlier handlers remain in the pool as fallbacks for non-overlapping requests.
+
+```python
+mock = await http_server()
+
+mock.expect_request("/api", method="GET").respond_with_json({"v": 1})
+mock.expect_request("/api", method="GET").respond_with_json({"v": 2})
+
+resp = await client.get(mock.url_for("/api"))
+data = await resp.json()
+assert data == {"v": 2}
+```
+
+#### FIRST_WINS
+
+The first registered handler keeps priority. Later registrations for the same route are checked after the first one.
+
+```python
+mock = await http_server(conflict_policy=ConflictPolicy.FIRST_WINS)
+
+mock.expect_request("/api", method="GET").respond_with_json({"v": 1})
+mock.expect_request("/api", method="GET").respond_with_json({"v": 2})
+
+resp = await client.get(mock.url_for("/api"))
+data = await resp.json()
+assert data == {"v": 1}
+```
+
+#### ERROR
+
+Raises `ConflictError` at registration time if the new handler overlaps with an already-registered one in the same pool. Useful for catching accidental duplicate registrations.
+
+```python
+from async_pytest_httpserver import ConflictPolicy, ConflictError
+
+mock = await http_server(conflict_policy=ConflictPolicy.ERROR)
+mock.expect_request("/api", method="GET").respond_with_json({"v": 1})
+
+# Raises ConflictError — same path and method already registered
+mock.expect_request("/api", method="GET").respond_with_json({"v": 2})
+```
+
+Overlap detection is field-by-field: two matchers are considered non-overlapping when at least one dimension is provably incompatible (different exact paths, disjoint methods, different concrete query or header values, different JSON bodies). Conservative matchers (`StartsWith`, `Contains`, regex, `json_contains=`, composites) are treated as potentially overlapping.
+
+Cross-pool registrations — e.g. an oneshot handler alongside a permanent one for the same route — are allowed regardless of policy.
+
 ### Assertions
 
 #### CallLog

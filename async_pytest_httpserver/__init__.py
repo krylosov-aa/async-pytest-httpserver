@@ -1,4 +1,5 @@
 from .call_info import CallInfo, CallLog
+from .conflict_policy import ConflictError, ConflictPolicy
 from .fixtures import http_server
 from .handlers import (
     Chain,
@@ -23,6 +24,8 @@ __all__ = [
     "CallInfo",
     "CallLog",
     "Chain",
+    "ConflictError",
+    "ConflictPolicy",
     "Contains",
     "Delay",
     "Garbage",

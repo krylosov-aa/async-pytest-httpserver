@@ -76,6 +76,9 @@ class _BaseMatcher(ABC):
     def matches_call_info(self, call: CallInfo) -> bool:
         """Check whether a stored ``CallInfo`` matches."""
 
+    def could_overlap(self, other: _BaseMatcher) -> bool:
+        return True
+
 
 class _And(_BaseMatcher):
     """Matches when BOTH matchers match (logical AND)."""
@@ -222,6 +225,11 @@ class RequestMatcher(_BaseMatcher):
             return False
         return self._match_body_from_info(call)
 
+    def could_overlap(self, other: _BaseMatcher) -> bool:
+        if not isinstance(other, RequestMatcher):
+            return True
+        return self._request_matcher_overlaps(other)
+
     def _match_path(self, path: str) -> bool:
         if self._path is None:
             return True
@@ -330,6 +338,93 @@ class RequestMatcher(_BaseMatcher):
         except (json_module.JSONDecodeError, UnicodeDecodeError):
             return False
         return _is_subset(self._json_contains, actual)
+
+    def _request_matcher_overlaps(self, other: RequestMatcher) -> bool:
+        if not self._methods_overlap(other):
+            return False
+        if not self._paths_could_overlap(other):
+            return False
+        if not self._query_strings_compatible(other):
+            return False
+        if not self._headers_compatible(other):
+            return False
+        return self._bodies_compatible(other)
+
+    def _methods_overlap(self, other: RequestMatcher) -> bool:
+        self_set = self._method_set(self._method)
+        other_set = self._method_set(other._method)
+        if not self_set or not other_set:
+            return True
+        return bool(self_set & other_set)
+
+    @staticmethod
+    def _method_set(method: str | list[str]) -> set[str]:
+        if method == "*":
+            return set()
+        if isinstance(method, list):
+            return {m.upper() for m in method}
+        return {method.upper()}
+
+    def _paths_could_overlap(self, other: RequestMatcher) -> bool:
+        path_a = self._path
+        path_b = other._path
+        if path_a is None or path_b is None:
+            return True
+        if isinstance(path_a, str):
+            return self._str_path_could_overlap(path_a, path_b)
+        if isinstance(path_b, str):
+            return self._str_path_could_overlap(path_b, path_a)
+        if isinstance(path_a, StartsWith) and isinstance(path_b, StartsWith):
+            return path_a.value.startswith(
+                path_b.value
+            ) or path_b.value.startswith(path_a.value)
+        return True
+
+    @staticmethod
+    def _str_path_could_overlap(path_a: str, other_path: _PathArg) -> bool:
+        if isinstance(other_path, str):
+            return path_a == other_path
+        if isinstance(other_path, StartsWith):
+            return path_a.startswith(other_path.value)
+        if isinstance(other_path, Contains):
+            return other_path.value in path_a
+        if isinstance(other_path, re.Pattern):
+            return bool(other_path.search(path_a))
+        return True
+
+    def _query_strings_compatible(self, other: RequestMatcher) -> bool:
+        if self._query_string is None or other._query_string is None:
+            return True
+        self_q = self._parse_expected_query()
+        other_q = other._parse_expected_query()
+        for key in self_q:
+            if key in other_q and self_q[key] != other_q[key]:
+                return False
+        return True
+
+    def _headers_compatible(self, other: RequestMatcher) -> bool:
+        if self._headers is None or other._headers is None:
+            return True
+        for key in self._headers:
+            other_val = other._headers.get(key)
+            if other_val is not None and self._headers[key] != other_val:
+                return False
+        return True
+
+    def _bodies_compatible(self, other: RequestMatcher) -> bool:
+        self_json = not isinstance(self._json, _Undefined)
+        other_json = not isinstance(other._json, _Undefined)
+        if self_json and other_json:
+            return self._json == other._json  # type: ignore[no-any-return]
+        if self._data is not None and other._data is not None:
+            return self._data_compatible(self._data, other._data)
+        return True
+
+    @staticmethod
+    def _data_compatible(a: str | bytes, b: str | bytes) -> bool:
+        a_bytes = a if isinstance(a, bytes) else a.encode()
+        b_bytes = b if isinstance(b, bytes) else b.encode()
+        return a_bytes == b_bytes
 
 
 M = RequestMatcher
