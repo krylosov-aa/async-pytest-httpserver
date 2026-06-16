@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import pytest
 
 from async_pytest_httpserver import HTTPServerMock
