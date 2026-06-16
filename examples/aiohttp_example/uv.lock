@@ -240,7 +240,6 @@ version = "2.0.0"
 source = { directory = "../../" }
 dependencies = [
     { name = "aiohttp" },
-    { name = "multidict" },
     { name = "pytest" },
     { name = "pytest-aiohttp" },
     { name = "pytest-asyncio" },
@@ -248,9 +247,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.13.2" },
-    { name = "multidict", specifier = ">=6.0" },
-    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "aiohttp", specifier = ">=3.11.0" },
+    { name = "pytest", specifier = ">=8.4" },
     { name = "pytest-aiohttp", specifier = ">=1.1.0" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
 ]
